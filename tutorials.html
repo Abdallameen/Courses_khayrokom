@@ -121,7 +121,8 @@
 
 <script>
 /* ============ ضع روابط الفيديوهات هنا ============
-   يقبل: رابط يوتيوب، أو رابط ملف من Google Drive، أو رابط مباشر لملف mp4.
+   يقبل: مسار ملف داخل المشروع (مثل vid/1.mp4)، أو رابط يوتيوب،
+   أو رابط ملف من Google Drive، أو رابط مباشر لملف mp4.
    اترك الرابط فاضي "" والفيديو هيظهر "قريبًا".
 ================================================== */
 const VIDEOS = [
@@ -161,28 +162,51 @@ function playerHTML(v, title) {
     <button class="play" type="button" data-type="${v.type}" data-id="${v.id}" aria-label="تشغيل: ${esc(title)}"><span></span></button>`;
 }
 
+/* ---------- إيقاف الفيديوهات الأخرى تلقائيًا ---------- */
+function stopOthers(current) {
+  document.querySelectorAll("#videos .player").forEach(p => {
+    if (p === current) return;
+    const v = p.querySelector("video");
+    if (v) v.pause();                                              // mp4: يقف ويفضل مكانه
+    if (p.querySelector("iframe")) p.innerHTML = p.dataset.orig;   // يوتيوب/درايف: يرجع لصورة التشغيل
+  });
+}
+
 function mount(btn) {
   const { type, id } = btn.dataset;
+  const player = btn.parentElement;
+  stopOthers(player);
   const src = type === "yt"
     ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`
     : `https://drive.google.com/file/d/${id}/preview`;
-  btn.parentElement.innerHTML =
+  player.innerHTML =
     `<iframe src="${src}" title="فيديو الشرح" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
 }
 
+/* ---------- بناء الصفحة ---------- */
 document.getElementById("index").innerHTML = VIDEOS.map((v, i) =>
   `<li><a href="#v${i + 1}"><b>${i + 1}.</b> ${esc(v.title)}</a></li>`).join("");
 
-document.getElementById("videos").innerHTML = VIDEOS.map((v, i) => `
+const videosBox = document.getElementById("videos");
+
+videosBox.innerHTML = VIDEOS.map((v, i) => `
   <section class="video" id="v${i + 1}">
     <div class="video-head"><span class="num">${i + 1}</span><h2>${esc(v.title)}</h2></div>
     <div class="player">${playerHTML(parseVideo(v.url), v.title)}</div>
   </section>`).join("");
 
-document.getElementById("videos").addEventListener("click", e => {
+// نحفظ الشكل الأصلي لكل مشغّل عشان نرجعه لو اتقفل
+videosBox.querySelectorAll(".player").forEach(p => { p.dataset.orig = p.innerHTML; });
+
+videosBox.addEventListener("click", e => {
   const b = e.target.closest(".play");
   if (b) mount(b);
 });
+
+// أحداث الفيديو مش بتطلع لفوق، فلازم نسمعها في مرحلة الـ capture
+videosBox.addEventListener("play", e => {
+  if (e.target.tagName === "VIDEO") stopOthers(e.target.parentElement);
+}, true);
 </script>
 </body>
 </html>
